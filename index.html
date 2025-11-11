@@ -138,9 +138,10 @@
             margin: 30px 0;
         }
 
+        /* Contenedor principal para la visualización y controles */
         main {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: wrap; /* Importante para la responsividad */
             justify-content: center; 
             padding: 30px 20px;
             gap: 30px;
@@ -477,6 +478,112 @@
             background-color: #ffffff;
             box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
         }
+
+        /* --- Media Queries para Responsividad (Adaptación a Dispositivos Móviles) --- */
+
+        /* Dispositivos con anchos de hasta 900px (Tabletas y Pequeños Escritorios) */
+        @media (max-width: 900px) {
+            main {
+                flex-direction: column; /* Apila el visualizador y los controles */
+                padding: 20px 10px;
+                gap: 20px;
+            }
+
+            .visualizador, .controles {
+                min-width: 100%; /* Ocupan todo el ancho disponible */
+                max-width: 100%;
+                padding: 25px;
+            }
+
+            /* Reducir el tamaño de los títulos */
+            header h1 {
+                font-size: 2.5em;
+            }
+
+            .section-title {
+                font-size: 1.7em;
+            }
+
+            .teoria-container {
+                padding: 20px;
+                margin: 15px auto;
+            }
+
+            /* Ajuste para el grid de conceptos */
+            .conceptos-grid {
+                grid-template-columns: 1fr; /* Una sola columna en pantallas pequeñas */
+            }
+
+            /* Ajuste de los grupos de control */
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            
+            /* Input y botones ocupan todo el ancho */
+            input[type="number"],
+            input[type="text"],
+            button {
+                width: 100%;
+                box-sizing: border-box;
+            }
+        }
+
+        /* Dispositivos con anchos de hasta 600px (Móviles) */
+        @media (max-width: 600px) {
+            header {
+                padding: 30px 15px;
+            }
+
+            header h1 {
+                font-size: 2em;
+            }
+
+            header p {
+                font-size: 1em;
+            }
+
+            /* Eliminar la animación de entrada para un mejor rendimiento en móviles */
+            .elemento.entrando {
+                transition: none !important;
+                transform: none !important;
+                opacity: 1 !important;
+            }
+
+            /* Ajuste para la visualización de la cola */
+            .cola-wrapper {
+                height: 120px; /* Reducir altura del contenedor */
+            }
+
+            .cola {
+                height: 80px; /* Reducir altura del túnel */
+            }
+
+            .elemento {
+                /* Permitir que el ancho se ajuste más agresivamente */
+                min-width: 60px !important;
+                height: 60px !important;
+                line-height: 50px !important; /* Ajuste vertical de texto */
+                font-size: 0.9em;
+            }
+            
+            /* Esconder los indicadores largos en móviles para evitar desbordamiento */
+            .indicador-frente, .indicador-final {
+                display: none;
+            }
+
+            /* Quitar el padding del visualizador si la capacidad es grande para no forzar scroll lateral */
+            .visualizador {
+                padding: 20px 10px;
+            }
+
+            #estado-cola {
+                font-size: 1em;
+                padding: 15px;
+            }
+        }
+        
     </style>
 </head>
 <body>
@@ -657,10 +764,11 @@
         function ajustarAnchoElementos(elementCount) {
             // Utilizamos la capacidad máxima como base para calcular el ancho y que no salte al hacer ENQUEUE/DEQUEUE
             const baseCount = MAX_SIZE; 
-            const containerWidth = colaContenedor.clientWidth - (CONTAINER_PADDING * 2);
+            // Usa el ancho actual del contenedor de la cola (responsivo)
+            const containerWidth = colaContenedor.clientWidth - (CONTAINER_PADDING * 2); 
             
             // Si hay 5 o menos elementos, usamos el ancho inicial.
-            if (baseCount <= 5) {
+            if (baseCount <= 5 && containerWidth > (INITIAL_ELEMENT_WIDTH + ELEMENT_MARGIN * 2) * baseCount) {
                 return INITIAL_ELEMENT_WIDTH; 
             }
             
@@ -699,7 +807,7 @@
             MAX_SIZE = nuevoTamanio;
             maxCapacidadElemento.textContent = MAX_SIZE;
             
-            // Forzar actualización para aplicar el nuevo ancho si MAX_SIZE es grande
+            // Forzar actualización para aplicar el nuevo ancho
             actualizarVisualizacion(true); 
 
             logOperation(`Capacidad máxima definida a ${nuevoTamanio}.`);
@@ -767,7 +875,7 @@
                     colaInterno.appendChild(divElemento); 
                 });
             } else {
-                 // Si no hay redibujo completo, ajustar los anchos existentes
+                // Si no hay redibujo completo, ajustar los anchos existentes
                  colaInterno.querySelectorAll('.elemento').forEach(divElemento => {
                     divElemento.style.width = `${elementWidth}px`;
                     divElemento.style.minWidth = `${elementWidth}px`;
@@ -803,7 +911,7 @@
             }
             
             // Eliminar cualquier transformación de desplazamiento (para asegurar visualización completa)
-             colaInterno.style.transform = `translateX(0px)`;
+              colaInterno.style.transform = `translateX(0px)`;
         }
 
         function mostrarMensaje(mensaje, esError = true) {
@@ -897,84 +1005,94 @@
             
             if (elementoVisual) {
                 // Muestra el elemento extraído en el display
-                elementoExtraidoDisplay.textContent = `Extraído (DEQUEUE): ${elementoDesencolado}`;
+                elementoExtraidoDisplay.textContent = `⬅️ Elemento extraído (DEQUEUE): "${elementoDesencolado}"`;
                 elementoExtraidoDisplay.classList.add('visible');
-
-                // 1. Aplica la animación de salida
+                
+                // Inicia la animación de salida
                 elementoVisual.classList.add('saliendo');
-                elementoVisual.classList.remove('frente', 'final'); 
                 
-                // 2. Determinar el nuevo ancho de los elementos restantes
-                const newElementWidth = ajustarAnchoElementos(MAX_SIZE);
+                // Mueve todos los elementos restantes a la izquierda
+                const elementWidth = ajustarAnchoElementos(MAX_SIZE);
+                // La distancia de desplazamiento es el ancho del elemento + 2*margin
+                const shiftDistance = elementWidth + (ELEMENT_MARGIN * 2);
                 
-                // 3. Ajustar todos los anchos restantes para que ocupen el nuevo espacio
-                colaInterno.querySelectorAll('.elemento:not(.saliendo)').forEach(el => {
-                     el.style.width = `${newElementWidth}px`;
-                     el.style.minWidth = `${newElementWidth}px`;
-                     el.style.lineHeight = `${newElementWidth - 10}px`;
-                });
-
-                // 4. Elimina el elemento visual después de que la animación termine
+                // Aplicar la transición de desplazamiento al contenedor interno
+                colaInterno.style.transition = `transform ${ANIMATION_DURATION}ms ease-in-out`;
+                colaInterno.style.transform = `translateX(-${shiftDistance}px)`;
+                
                 setTimeout(() => {
+                    // 1. Quitar el elemento de la animación
                     elementoVisual.remove();
-                    actualizarVisualizacion(false); 
+                    // 2. Limpiar la transición y restablecer la posición
+                    colaInterno.style.transition = 'none';
+                    colaInterno.style.transform = `translateX(0px)`;
+
+                    // 3. Actualizar la visualización y log
+                    actualizarVisualizacion();
+                    logOperation(`➖ DEQUEUE: Elemento "${elementoDesencolado}" extraído del Frente.`, 'success');
+
+                    // 4. Ocultar el display de elemento extraído
+                    setTimeout(() => {
+                        elementoExtraidoDisplay.classList.remove('visible');
+                        elementoExtraidoDisplay.textContent = '';
+                        toggleControls(false);
+                    }, 500); 
                     
-                    logOperation(`➖ DEQUEUE: Elemento "${elementoDesencolado}" eliminado del Frente.`, 'success');
-                    
-                    // Oculta el display de extraído
-                    elementoExtraidoDisplay.classList.remove('visible');
-                    elementoExtraidoDisplay.textContent = '';
-                    
-                    toggleControls(false);
                 }, ANIMATION_DURATION); 
             }
         }
 
         function frontElemento() {
             if (isAnimating) return;
+            toggleControls(true);
 
-            // --- Subdesbordamiento (Underflow) ---
             if (cola.length === 0) {
                 const mensaje = "⛔ ERROR (Underflow). FRONT fallido. La cola está vacía.";
-                limpiarIndicadores();
                 mostrarMensaje(mensaje, true);
                 logOperation(mensaje, 'error');
+                toggleControls(false);
                 return;
             }
 
-            const frente = cola[0]; 
-            const elementoVisualFrente = colaInterno.querySelector('.elemento.frente'); 
+            const elementoFrente = cola[0];
+            const elementoVisual = colaInterno.querySelector('.elemento');
             
-            if (elementoVisualFrente) {
-                // 1. Aplica la animación de rebote/resaltado
-                elementoVisualFrente.classList.add('front-resaltado');
+            // Resaltar visualmente
+            if (elementoVisual) {
+                elementoVisual.classList.add('front-resaltado');
                 
-                // 2. Muestra los indicadores
-                indicadorFrente.classList.add('visible');
-                indicadorFinal.classList.add('visible'); 
+                elementoExtraidoDisplay.textContent = `👁️ Elemento en el Frente (FRONT): "${elementoFrente}"`;
+                elementoExtraidoDisplay.classList.remove('visible'); // Forzar re-display
+                elementoExtraidoDisplay.classList.add('visible');
 
-                // 3. Limpia el temporizador anterior y establece uno nuevo
-                clearTimeout(indicadorTimeout);
-                indicadorTimeout = setTimeout(() => {
-                    elementoVisualFrente.classList.remove('front-resaltado');
-                    actualizarVisualizacion(false); 
-                }, 1500); 
+                logOperation(`👁️ FRONT: El elemento al frente es "${elementoFrente}".`, 'info');
+                
+                // Eliminar el resaltado después de la animación
+                setTimeout(() => {
+                    elementoVisual.classList.remove('front-resaltado');
+                    elementoExtraidoDisplay.classList.remove('visible');
+                    elementoExtraidoDisplay.textContent = '';
+                    toggleControls(false);
+                }, ANIMATION_DURATION + 300); 
+            } else {
+                toggleControls(false);
             }
-
-            logOperation(`👁️ FRONT: El elemento en el Frente es "${frente}".`, 'info');
-            mostrarMensaje(`El elemento en el Frente (FRONT) es: "${frente}".`, false);
         }
-
-        // Inicializar la visualización al cargar la página
-        window.onload = () => {
-            setMaxSize(); 
-            actualizarVisualizacion(true); 
-            logOperation("Visualizador de Cola cargado y listo para usar. ¡Comienza con ENQUEUE!", 'info');
-            toggleControls(false); 
-            
-            // Asegurar que se recalcula el tamaño al cargar la ventana
-            window.addEventListener('resize', () => actualizarVisualizacion(false));
+        
+        // Ejecutar al cargar la página
+        window.onload = function() {
+            maxCapacidadElemento.textContent = MAX_SIZE;
+            tamanioColaInput.value = MAX_SIZE;
+            logOperation("Visualizador de Cola listo. Define la capacidad o usa ENQUEUE para empezar.", 'info');
         };
+
+        // Escucha el evento resize para asegurar que los elementos se redimensionan cuando cambia el viewport (importante para responsividad)
+        window.addEventListener('resize', () => {
+             // Solo actualizamos si hay elementos en la cola
+             if (cola.length > 0) {
+                 actualizarVisualizacion();
+             }
+        });
     </script>
 </body>
 </html>
