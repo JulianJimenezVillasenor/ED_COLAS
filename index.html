@@ -1,1098 +1,471 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualizador Interactivo de Cola (Queue) - FIFO</title>
-    <link rel="icon" href="LogoUT.png">
-    <style>
-        
-        /* Fuentes */
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Montserrat:wght@600;700&display=swap');
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Colas Interactivas — Cola Simple y Cola Circular</title>
+  <link rel="icon" href="LogoUT.png">
+  <style>
+    /* VARIABLES Y BASE: Tema Claro con Contraste MÁXIMO */
+    :root{
+      /* Colores base para máximo contraste */
+      --bg:#f8f9fc;     
+      --card:#ffffff;   
+      --text:#111827;   
+      
+      /* Colores de acento más fuertes */
+      --accent:#0088cc; /* Azul oscuro y fuerte para FRENTE/Enqueue */
+      --muted:#374151;  /* Gris oscuro para texto secundario (alto contraste) */
+      --danger:#dc267f; /* Magenta intenso para FINAL/warnings */
+      
+      --cell-size:80px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    body{
+      background:var(--bg); 
+      color:var(--text); 
+      margin:0; padding:24px;
+    }
 
-        /* --- Estilos Generales --- */
-        body {
-            font-family: 'Roboto', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f0f2f5; 
-            color: #333;
-            line-height: 1.6;
-        }
+    /* RESPONSIVIDAD: Estructura Principal */
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns:1fr 360px; /* Layout por defecto (Desktop) */
+      gap:20px;
+      align-items:start
+    }
+    header{grid-column:1/-1;display:flex;gap:16px;align-items:center}
+    header h1{font-size:24px;margin:0; color: var(--text);} 
+    header p{margin:0;color:var(--muted);font-size:14px}
 
-        header {
-            background-color: #2c3e50; 
-            color: white;
-            padding: 40px 20px;
-            text-align: center;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25); 
-            margin-bottom: 20px;
-        }
+    /* GENERALES */
+    .card{
+      background:var(--card); 
+      padding:16px;border-radius:12px;
+      box-shadow:0 6px 18px rgba(0,0,0,0.12); 
+      border: 1px solid rgba(0,0,0,0.1);
+    }
+    .section-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 8px; font-weight: 700;}
+    
+    /* RESPONSIVIDAD: Controles y Inputs */
+    .controls{
+        display:flex;
+        gap:8px;
+        align-items:center;
+        flex-wrap: wrap; 
+    }
+    input[type="text"], input[type="number"], select{
+      padding:10px;border-radius:8px;
+      border:1px solid #a8a8a8; 
+      background:#f0f4f8; 
+      color:var(--text);
+      width: clamp(100px, 30vw, 120px); 
+      font-size: 14px;
+    }
+    
+    /* BOTONES (Alto Contraste) */
+    button{
+        background:var(--accent);border:0;padding:10px 14px;border-radius:8px;color:#fff; 
+        cursor:pointer;font-weight:700;transition: background-color .2s, transform .1s;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        box-shadow: 0 4px 8px rgba(0, 136, 204, 0.5); 
+    }
+    button:hover{ background: #0077b3; } 
+    button:active{ transform: scale(0.98); }
+    button.ghost{
+        background:transparent;border:1px solid var(--muted);color:var(--muted);
+        box-shadow: none;
+    }
+    button.ghost:hover{ background: rgba(0,0,0,0.08); color: var(--text);}
+    button.warn{
+        background:var(--danger);color:#fff;
+        box-shadow: 0 4px 8px rgba(220, 38, 127, 0.5); 
+    }
+    button.warn:hover{ background: #c52070; }
 
-        header h1 {
-            font-family: 'Montserrat', sans-serif;
-            margin-top: 0;
-            font-size: 3em; 
-            letter-spacing: 1px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
 
-        header p {
-            font-size: 1.1em;
-            opacity: 0.9;
-            max-width: 800px;
-            margin: 10px auto 0;
-        }
-        
-        /* Contenedor de la Teoría */
-        .teoria-container {
-            background-color: #ffffff; 
-            padding: 30px;
-            margin: 20px auto;
-            max-width: 1100px; 
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            animation: fadeIn 0.8s ease-out; 
-        }
-        
-        .teoria-container h2 {
-            color: #34495e; 
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 10px;
-            margin-bottom: 25px;
-            font-family: 'Montserrat', sans-serif;
-            font-size: 1.8em;
-            text-align: center;
-        }
+    /* VISUALIZACIÓN DE COLA */
+    .visual{display:flex;flex-direction:column;gap:12px}
+    .array{
+      display:flex;
+      gap:10px;
+      /* CLAVE: Aumentado el padding vertical para que los punteros quepan */
+      padding: 50px 12px; 
+      background: #e9e9eb; 
+      border-radius: 8px;
+      border: 1px solid #d1d5db; 
+      overflow-x: auto; 
+      flex-wrap: wrap; 
+      justify-content: center; 
+    }
+    .cell{
+      min-width:var(--cell-size); 
+      height:var(--cell-size);
+      background:#ffffff; 
+      border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      position:relative;
+      border:1px solid #d1d5db; 
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text); 
+      transition:transform .28s ease, box-shadow .28s, border-color .28s, background .28s;
+    }
+    
+    /* ESTILOS DE CELDAS */
+    .cell.empty{
+      color:var(--muted);opacity:0.6;
+      border:1px dashed var(--muted); 
+      background: #f3f4f6; 
+    }
+    .cell.filled{
+      box-shadow:0 0 18px rgba(0, 136, 204, 0.4); 
+      border:2px solid var(--accent); 
+      background: #e6f1f8; 
+      opacity: 1;
+    }
+    
+    /* PUNTEROS (frente/final) - MEJORAS DE VISIBILIDAD */
+    .pointer{
+        position:absolute;
+        left:50%;
+        transform:translateX(-50%);
+        background:var(--accent); 
+        color:#fff; 
+        padding:5px 12px; 
+        border-radius:8px;
+        font-size:14px; 
+        font-weight:800;
+        box-shadow: 0 4px 14px rgba(0, 136, 204, 1); 
+        white-space: nowrap; 
+        z-index: 10; 
+        top: -42px; 
+    }
 
-        .teoria-container h3 {
-            color: #2c3e50;
-            font-family: 'Montserrat', sans-serif;
-            font-size: 1.4em;
-            margin-top: 30px;
-            padding-left: 10px;
-            border-left: 5px solid #3498db;
-        }
-        
-        .teoria-container p {
-            font-size: 1.05em;
-            margin-bottom: 15px;
-            text-align: justify;
-        }
+    /* Flecha hacia abajo para FRENTE */
+    .pointer:after {
+        content: '';
+        position: absolute;
+        bottom: -8px; 
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 8px 8px 0;
+        border-style: solid;
+        border-color: var(--accent) transparent transparent transparent; 
+    }
 
-        .teoria-container strong {
-            color: #e74c3c; 
-            font-weight: 700;
-        }
-        
-        /* Contenedor de las Tarjetas de Conceptos */
-        .conceptos-grid {
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
-            gap: 20px;
-            margin-top: 30px;
-        }
-        
-        .concepto-card {
-            background-color: #f9f9f9; 
-            padding: 20px;
-            border-left: 6px solid #2ecc71; 
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            transition: transform 0.3s ease-out, box-shadow 0.3s ease-out, background-color 0.3s ease;
-        }
+    .pointer.rear{
+        background:var(--danger); 
+        color:#fff;
+        box-shadow: 0 4px 14px rgba(220, 38, 127, 1); 
+        top: auto;
+        bottom: -42px; 
+    }
 
-        .concepto-card.error-card {
-            border-left: 6px solid #e74c3c; 
-        }
-        
-        .concepto-card:hover {
-            transform: translateY(-5px); 
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-            background-color: #e8f4fd; 
-            cursor: default;
-        }
+    /* Flecha hacia arriba para FINAL */
+    .pointer.rear:after {
+        content: '';
+        position: absolute;
+        top: -8px; 
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 0 8px 8px;
+        border-style: solid;
+        border-color: transparent transparent var(--danger) transparent; 
+    }
 
-        .concepto-card h4 {
-            margin-top: 0;
-            color: #2c3e50; 
-            font-size: 1.3em;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-family: 'Montserrat', sans-serif;
-            font-weight: 700;
-            margin-bottom: 10px;
-        }
-        
-        .concepto-card p {
-            font-size: 1em;
-            margin: 0;
-            color: #555;
-            text-align: left; 
-        }
+    /* PIE Y PANELES */
+    .small{font-size:13px;color:var(--muted)}
+    .log{
+      max-height:150px; 
+      overflow:auto;
+      background:#f3f4f6; 
+      padding:10px;border-radius:8px;
+      border:1px solid rgba(0,0,0,0.1);
+      font-size:14px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .right-panel{position:sticky;top:24px}
+    .mode-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    .explain{font-size:14px;color:var(--muted);line-height:1.6}
+    .explain h3{color: var(--text); font-size: 16px; margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 3px;}
+    footer{grid-column:1/-1;margin-top:24px;color:var(--muted);font-size:13px;text-align:center}
 
-        hr {
-            border: none;
-            border-top: 1px solid #e0e0e0;
-            margin: 30px 0;
+    /* MEDIA QUERY: Diseño para Móviles/Tablets (menos de 980px) */
+    @media (max-width:980px){
+        body { padding: 12px; } 
+        header { flex-direction: column; align-items: flex-start; }
+        .wrap{
+            grid-template-columns:1fr; 
         }
-
-        /* Contenedor principal para la visualización y controles */
-        main {
-            display: flex;
-            flex-wrap: wrap; /* Importante para la responsividad */
-            justify-content: center; 
-            padding: 30px 20px;
-            gap: 30px;
-            max-width: 1100px;
-            margin: 0 auto 50px auto;
-        }
-
-        .visualizador, .controles {
-            background-color: white;
-            padding: 35px; 
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            flex: 1;
-            min-width: 350px; 
-            max-width: 500px; 
-        }
-
-        h2.section-title { 
-            font-family: 'Montserrat', sans-serif;
-            color: #3498db; 
-            border-bottom: 3px solid #3498db;
-            padding-bottom: 10px;
-            margin-top: 0;
-            margin-bottom: 30px;
-            font-size: 2em;
-            text-align: center;
-        }
-
-        /* --- Visualización de la Cola (Contenedor MEJORADO) --- */
-        .cola-wrapper {
-            position: relative;
-            margin: 20px auto 40px;
-            width: 100%;
-            max-width: 600px;
-            height: 150px; 
-            display: flex;
-            align-items: center; 
-            justify-content: center;
-        }
-        
-        /* El contenedor principal actúa como el "túnel" de la cola */
-        .cola {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: flex-start;
-            
-            border: 3px solid #7f8c8d; 
-            border-radius: 8px;
-            height: 100px; 
-            width: 100%; 
-            background-color: #ecf0f1; 
-            overflow: hidden; 
-            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.15); 
-            position: relative;
-            padding: 5px; 
-            box-sizing: border-box;
-        }
-        
-        /* Contenedor interno que contiene los elementos */
-        #cola-contenedor-interno {
-            display: flex;
-            align-items: center;
-            transition: none; 
-        }
-
-        .elemento {
-            min-width: 80px; 
-            max-width: 80px;
-            height: 80px; 
-            padding: 5px; 
-            margin: 0 5px; 
-            background-color: #2ecc71; 
-            color: white;
-            text-align: center;
-            border: 1px solid #27ae60;
-            border-radius: 5px;
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
-            font-weight: 600;
-            line-height: 70px;
-            transition: all 0.4s ease-in-out, background-color 0.2s, transform 0.4s, width 0.4s, margin 0.4s; 
-            z-index: 5;
-            font-size: 1.1em;
-            flex-shrink: 0; 
-            box-sizing: border-box;
-        }
-        
-        /* Marcadores visuales de Frente y Final */
-        .elemento.frente {
-            background-color: #e74c3c; 
-            color: white;
-            box-shadow: 0 0 10px rgba(231, 76, 60, 0.9);
-        }
-
-        .elemento.final {
-            background-color: #3498db; 
-            color: white;
-            box-shadow: 0 0 10px rgba(52, 152, 219, 0.9);
-        }
-        
-        /* Animación ENQUEUE: El elemento nuevo llega desde fuera por la derecha */
-        .elemento.entrando {
-            transform: translateX(100%); 
-            opacity: 0;
-            transition: none !important;
-        }
-
-        /* Animación DEQUEUE: Sale por la izquierda */
-        .elemento.saliendo {
-            transition: transform 0.4s ease-in, opacity 0.4s ease-in, background-color 0.4s, width 0.4s, margin 0.4s;
-            background-color: #e74c3c;
-            transform: translateX(-100%) scale(0.9); 
-            opacity: 0;
-        }
-
-        /* Animación FRONT: Resaltado */
-        .elemento.front-resaltado {
-            animation: front-bounce 0.4s ease-in-out;
-        }
-        
-        @keyframes front-bounce {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        /* --- Flechas Indicadoras: NUEVA POSICIÓN LATERAL --- */
-        .indicador-frente, .indicador-final {
-            position: absolute;
-            top: 50%; /* Centrado verticalmente */
-            transform: translateY(-50%); /* Ajuste de centrado */
-            opacity: 0;
-            transition: all 0.4s ease-in-out;
-            font-weight: 700;
-            font-size: 1.1em;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            white-space: nowrap; /* Evita que el texto se rompa */
-            z-index: 10;
-            padding: 5px;
-        }
-        
-        /* Indicador del Frente (Izquierda) */
-        .indicador-frente {
-            left: -120px; /* Mover completamente fuera del contenedor de la cola */
-            color: #e74c3c; 
-        }
-        
-        /* Indicador del Final (Derecha) */
-        .indicador-final {
-            right: -120px; /* Mover completamente fuera del contenedor de la cola */
-            color: #3498db; 
-        }
-        
-        .indicador-frente.visible, .indicador-final.visible {
-            opacity: 1;
-        }
-        
-        .indicador-frente span, .indicador-final span {
-            font-size: 30px;
-        }
-        
-        .indicador-frente .text, .indicador-final .text {
-            font-size: 0.9em;
-            margin-top: -5px;
-        }
-
-        /* Alineación del contenido del indicador */
-        .indicador-frente {
-            align-items: flex-end;
-            text-align: right;
-        }
-        
-        .indicador-final {
-            align-items: flex-start;
-            text-align: left;
-        }
-
-        /* Contenedor del elemento extraído (para la animación DEQUEUE) */
-        #elemento-extraido-display {
-            background-color: #e74c3c;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 6px;
-            text-align: center;
+        .right-panel{
+            position:relative;
+            top:0;
             margin-top: 20px;
-            font-weight: 700;
-            min-height: 40px;
-            opacity: 0;
-            transition: opacity 0.3s ease-in-out;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-
-        #elemento-extraido-display.visible {
-            opacity: 1;
+        .controls {
+            justify-content: space-between; 
         }
-        
-        /* --- Controles y Botones (Mantenidos) --- */
-        .control-group {
-            margin-bottom: 25px; 
-            display: flex;
-            gap: 12px;
-            align-items: center;
+        .controls label {
+            width: 100%; 
+            margin-bottom: -4px;
         }
-        
-        button:disabled {
-            background-color: #95a5a6 !important;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
+        .controls button {
+            flex-grow: 1; 
+            min-width: 80px;
         }
-        
-        /* --- Registro de Operaciones (Log) --- */
-        #log-container {
-            background-color: #fdfdfd;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            max-height: 250px; 
-            overflow-y: auto; 
-            margin-top: 30px;
-            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+        .controls input[type="text"], .controls input[type="number"] {
+            width: 100%; 
+            max-width: 150px;
         }
-
-        #log-container h3 {
-            font-family: 'Montserrat', sans-serif;
-            color: #2c3e50;
-            margin-top: 0;
-            margin-bottom: 15px;
-            font-size: 1.5em;
+        .section-title {
+            flex-direction: column;
+            align-items: flex-start;
         }
-
-        #log-list {
-            list-style: none;
-            padding: 0;
-            font-size: 0.95em;
-        }
-
-        #log-list li {
-            padding: 8px 10px;
-            margin-bottom: 5px;
-            border-left: 4px solid #3498db;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        #log-list li.error {
-            border-left-color: #e74c3c;
-            background-color: #fef1f1;
-            font-weight: 700;
-        }
-
-        #log-list li.success {
-            border-left-color: #2ecc71;
-            background-color: #f0fff0;
-        }
-        
-        /* Estilos generales de botones, inputs, etc. (se mantienen) */
-        .control-group.capacidad {
-            border: 2px dashed #aed6f1; 
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 35px;
-            background-color: #f0f8ff; 
-        }
-
-        input[type="number"],
-        input[type="text"] {
-            flex-grow: 1;
-            padding: 13px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            font-size: 1.05em;
-        }
-        
-        button {
-            padding: 14px 22px; 
-            border-radius: 6px;
-            border: none;
-            background-color: #3498db;
-            color: white;
-            cursor: pointer;
-            font-weight: 700;
-            transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 1.05em;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-        
-        button.limpiar-btn {
-            background-color: #e74c3c; 
-        }
-        
-        button:hover {
-            background-color: #2980b9;
-            transform: translateY(-2px);
-        }
-        
-        #estado-cola {
-            text-align: center;
-            margin-top: 30px;
-            font-size: 1.15em;
-            padding: 20px;
-            border: 1px solid #dcdcdc;
-            border-radius: 8px;
-            background-color: #fefefe;
-            box-shadow: inset 0 1px 5px rgba(0,0,0,0.05);
-            font-weight: 500;
-        }
-
-        #estado-cola span {
-            font-weight: 700;
-            color: #3498db;
-        }
-
-        #estado-cola #frente-valor {
-            color: #e74c3c;
-        }
-
-        #estado-cola #final-valor {
-            color: #3498db;
-        }
-
-        footer {
-            text-align: center;
-            padding: 25px;
-            margin-top: 40px;
-            color: #7f8c8d;
-            border-top: 1px solid #dcdcdc;
-            font-size: 0.95em;
-            background-color: #ffffff;
-            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
-        }
-
-        /* --- Media Queries para Responsividad (Adaptación a Dispositivos Móviles) --- */
-
-        /* Dispositivos con anchos de hasta 900px (Tabletas y Pequeños Escritorios) */
-        @media (max-width: 900px) {
-            main {
-                flex-direction: column; /* Apila el visualizador y los controles */
-                padding: 20px 10px;
-                gap: 20px;
-            }
-
-            .visualizador, .controles {
-                min-width: 100%; /* Ocupan todo el ancho disponible */
-                max-width: 100%;
-                padding: 25px;
-            }
-
-            /* Reducir el tamaño de los títulos */
-            header h1 {
-                font-size: 2.5em;
-            }
-
-            .section-title {
-                font-size: 1.7em;
-            }
-
-            .teoria-container {
-                padding: 20px;
-                margin: 15px auto;
-            }
-
-            /* Ajuste para el grid de conceptos */
-            .conceptos-grid {
-                grid-template-columns: 1fr; /* Una sola columna en pantallas pequeñas */
-            }
-
-            /* Ajuste de los grupos de control */
-            .control-group {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 10px;
-            }
-            
-            /* Input y botones ocupan todo el ancho */
-            input[type="number"],
-            input[type="text"],
-            button {
-                width: 100%;
-                box-sizing: border-box;
-            }
-        }
-
-        /* Dispositivos con anchos de hasta 600px (Móviles) */
-        @media (max-width: 600px) {
-            header {
-                padding: 30px 15px;
-            }
-
-            header h1 {
-                font-size: 2em;
-            }
-
-            header p {
-                font-size: 1em;
-            }
-
-            /* Eliminar la animación de entrada para un mejor rendimiento en móviles */
-            .elemento.entrando {
-                transition: none !important;
-                transform: none !important;
-                opacity: 1 !important;
-            }
-
-            /* Ajuste para la visualización de la cola */
-            .cola-wrapper {
-                height: 120px; /* Reducir altura del contenedor */
-            }
-
-            .cola {
-                height: 80px; /* Reducir altura del túnel */
-            }
-
-            .elemento {
-                /* Permitir que el ancho se ajuste más agresivamente */
-                min-width: 60px !important;
-                height: 60px !important;
-                line-height: 50px !important; /* Ajuste vertical de texto */
-                font-size: 0.9em;
-            }
-            
-            /* Esconder los indicadores largos en móviles para evitar desbordamiento */
-            .indicador-frente, .indicador-final {
-                display: none;
-            }
-
-            /* Quitar el padding del visualizador si la capacidad es grande para no forzar scroll lateral */
-            .visualizador {
-                padding: 20px 10px;
-            }
-
-            #estado-cola {
-                font-size: 1em;
-                padding: 15px;
-            }
-        }
-        
-    </style>
+    }
+  </style>
 </head>
 <body>
+  <div class="wrap">
     <header>
-        <h1>Cola: Filas 🚦 (FIFO)</h1>
-        <p>Un modelo interactivo para comprender la estructura de datos Primero en Entrar, Primero en Salir.</p>
+      <div>
+        <h1>Colas Interactivas — Cola Simple & Cola Circular</h1>
+        <p>Visualiza las operaciones enqueue / dequeue, indicadores frente/final, y aprende con animaciones.</p>
+      </div>
     </header>
 
-    <section class="teoria-container">
-        <h2 class="section-title">Concepto Fundamental: Cola (Queue)</h2>
-        <p>Una Cola es una estructura de datos lineal que sigue el principio FIFO (First-In, First-Out - Primero en Entrar, Primero en Salir). Esto significa que el primer elemento añadido es siempre el primero en ser procesado y eliminado. </p>
-        <p>Imagínela como una fila de personas esperando un servicio: la persona que llega primero (el Frente) es la que es atendida primero, y las nuevas personas se unen al final de la fila (el Final).</p>
-        
-        <hr>
-        
-        <h3 class="section-title-sub">⚙️ Operaciones Principales</h3>
-        <div class="conceptos-grid">
-            
-            <div class="concepto-card">
-                <h4>➕ ENQUEUE (Encolar)</h4>
-                <p>Operación para añadir un nuevo elemento por el Final de la cola. El elemento más reciente siempre se une al final de la fila.</p>
-            </div>
-            
-            <div class="concepto-card">
-                <h4>➖ DEQUEUE (Desencolar)</h4>
-                <p>Operación para eliminar y devolver el elemento que se encuentra en el Frente de la cola (el que ha esperado más tiempo).</p>
-            </div>
-            
-            <div class="concepto-card">
-                <h4>👁️ FRONT (Ver Frente)</h4>
-                <p>Permite ver el elemento que está en el Frente de la cola sin eliminarlo.</p>
-            </div>
-        </div>
-
-        <h3 class="section-title-sub">⚠️ Estados y Errores</h3>
-        <div class="conceptos-grid">
-            <div class="concepto-card error-card">
-                <h4>🛑 Overflow (Desbordamiento)</h4>
-                <p>Error que ocurre cuando se intenta realizar una operación ENQUEUE en una cola que ya ha alcanzado su capacidad máxima.</p>
-            </div>
-            
-            <div class="concepto-card error-card">
-                <h4>⛔ Underflow (Subdesbordamiento)</h4>
-                <p>Error que ocurre cuando se intenta realizar una operación DEQUEUE o FRONT en una cola que se encuentra completamente vacía.</p>
-            </div>
-        </div>
-    </section>
-
     <main>
-        <section class="visualizador">
-            <h2 class="section-title">Visualización Dinámica</h2>
-            <div class="cola-wrapper">
-                <div id="indicador-frente" class="indicador-frente">
-                    <span>➡️</span>
-                    <span class="text">FRENTE (DEQUEUE)</span>
-                </div>
-                <div id="indicador-final" class="indicador-final">
-                    <span>⬅️</span>
-                    <span class="text">FINAL (ENQUEUE)</span>
-                </div>
-                
-                <div id="cola-contenedor" class="cola">
-                    <div id="cola-contenedor-interno">
-                        </div>
-                </div>
-            </div>
-            
-            <div id="estado-cola">
-                <p>Tamaño Actual: <span id="contador">0</span> / <span id="max-capacidad">5</span></p>
-                <p>Elemento en el Frente (FRONT): <span id="frente-valor">N/A</span></p>
-                <p>Elemento en el Final: <span id="final-valor">N/A</span></p>
-                <div id="elemento-extraido-display"></div>
-            </div>
-            
-            <div id="mensajes-error" class="error-box"></div>
-        </section>
+      <div class="card">
+        <div class="section-title"><strong>Configuración</strong>
+          <div class="controls">
+            <label class="small">Tamaño (MAX)</label>
+            <input id="configMax" type="number" min="3" max="12" value="7">
+            <button id="applyConfig" class="ghost">Aplicar</button>
+            <button id="resetAll" class="ghost">Reiniciar todo</button>
+          </div>
+        </div>
+        <div class="small explain">Puedes cambiar el tamaño antes de probar. El simulador contiene dos paneles (Cola Simple y Cola Circular) con controles independientes. Usa valores numéricos o texto breve para los elementos.</div>
+      </div>
 
-        <section class="controles">
-            <h2 class="section-title">Panel de Control</h2>
-            
-            <div class="control-group capacidad">
-                <label for="tamanio-cola">Definir Capacidad Máxima (1-10)</label>
-                <input type="number" id="tamanio-cola" placeholder="Ej: 7" min="1" max="10" value="5">
-                <button onclick="setMaxSize()" id="btn-set-size">💾 Definir Capacidad</button>
-            </div>
-            
-            <div class="control-group">
-                <input type="text" id="valor-entrada" placeholder="Valor a Encolar (ENQUEUE)" maxlength="10">
-                <button onclick="enqueueElemento()" id="btn-enqueue">➕ ENQUEUE</button>
-            </div>
+      <section class="card" style="margin-top:12px">
+        <div class="section-title"><strong>Cola Simple (FIFO)</strong>
+          <div class="small">Implementación con punteros <code>frente</code> y <code>final</code></div>
+        </div>
 
-            <div class="control-group">
-                <button onclick="dequeueElemento()" id="btn-dequeue">➖ DEQUEUE</button>
-                <button onclick="frontElemento()" id="btn-front">👁️ FRONT (Ver Frente)</button>
+        <div class="visual" id="simpleArea">
+          <div style="display:flex;justify-content:space-between;align-items:center; flex-wrap: wrap;">
+            <div class="controls" style="flex-grow: 1;">
+              <input id="simpleValue" placeholder="valor (ej: A)" type="text">
+              <button id="simpleEnq">Enqueue</button>
+              <button id="simpleDeq" class="ghost">Dequeue</button>
+              <button id="simpleClear" class="ghost">Limpiar</button>
             </div>
-            
-            <div class="control-group limpiar">
-                <button onclick="limpiarCola()" class="limpiar-btn" id="btn-limpiar">🗑️ Limpiar Cola</button>
-            </div>
+            <div class="small" style="margin-top: 10px;">Estado: <span id="simpleState">Listo</span></div>
+          </div>
 
-            <hr>
-            
-            <div id="log-container">
-                <h3>📝 Registro de Operaciones</h3>
-                <ul id="log-list">
-                    </ul>
+          <div class="array" id="simpleArray"></div>
+          <div style="display:flex;gap:12px;margin-top:6px;align-items:center; flex-wrap: wrap;">
+            <div class="small">frente: <strong id="simpleFront">0</strong></div>
+            <div class="small">final: <strong id="simpleRear">-1</strong></div>
+            <div class="small">ocupados: <strong id="simpleCount">0</strong></div>
+          </div>
+
+          <div style="margin-top:8px">
+            <div class="small">Registro de acciones:</div>
+            <div class="log" id="simpleLog"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" style="margin-top:12px">
+        <div class="section-title"><strong>Cola Circular</strong>
+          <div class="small">Implementación con <code>frente</code>, <code>final</code> y <code>cantidad</code></div>
+        </div>
+
+        <div class="visual" id="circularArea">
+          <div style="display:flex;justify-content:space-between;align-items:center; flex-wrap: wrap;">
+            <div class="controls" style="flex-grow: 1;">
+              <input id="circValue" placeholder="valor (ej: 1)" type="text">
+              <button id="circEnq">Enqueue</button>
+              <button id="circDeq" class="ghost">Dequeue</button>
+              <button id="circClear" class="ghost">Limpiar</button>
             </div>
-        </section>
+            <div class="small" style="margin-top: 10px;">Estado: <span id="circState">Listo</span></div>
+          </div>
+
+          <div class="array" id="circArray"></div>
+          <div style="display:flex;gap:12px;margin-top:6px;align-items:center; flex-wrap: wrap;">
+            <div class="small">frente: <strong id="circFront">0</strong></div>
+            <div class="small">final: <strong id="circRear">0</strong></div>
+            <div class="small">cantidad: <strong id="circCount">0</strong></div>
+          </div>
+
+          <div style="margin-top:8px">
+            <div class="small">Registro de acciones:</div>
+            <div class="log" id="circLog"></div>
+          </div>
+        </div>
+      </section>
+
     </main>
 
+    <aside class="right-panel">
+      <div class="card">
+        <div class="section-title"><strong>Conceptos Fundamentales de Colas (FIFO)</strong></div>
+        <div class="explain">
+          <p>Una Cola (Queue) es una estructura de datos lineal que sigue el principio FIFO (First-In, First-Out). El elemento que se inserta primero es el primero en ser eliminado. Las operaciones clave son: <strong>Enqueue</strong> (insertar al final) y <strong>Dequeue</strong> (eliminar al frente).</p>
+          
+          <p>Los punteros FRENTE (Front) y FINAL (Rear) indican las posiciones de la primera y la última celda ocupada (o la siguiente libre, dependiendo de la implementación).</p>
+          
+          <h3>Manejo de Errores</h3>
+          <p>🛑 El Overflow (Desbordamiento) ocurre cuando se intenta ejecutar una operación <strong>Enqueue</strong> en una cola que ya está llena (<code>cantidad == MAX</code>). El elemento no puede ser insertado.</p>
+          <p>⚠️ El Underflow (Subdesbordamiento) ocurre cuando se intenta ejecutar una operación <strong>Dequeue</strong> en una cola que ya está vacía (<code>cantidad == 0</code>). No hay elementos para eliminar.</p>
+          
+          <h3>Tipos de Implementación</h3>
+          <p><strong>1. Cola Simple:</strong> Implementada con un arreglo lineal. El <code>frente</code> avanza con cada Dequeue, y el <code>final</code> con cada Enqueue. Una de sus limitaciones es el desperdicio de espacio al liberar celdas al inicio que no pueden ser reutilizadas.</p>
+          <p><strong>2. Cola Circular:</strong> Resuelve el problema de la cola simple reutilizando el espacio al inicio del arreglo. Los punteros <code>frente</code> y <code>final</code> avanzan de forma circular mediante la operación de módulo (<code>% MAX</code>). Se utiliza un contador (<code>cantidad</code>) para diferenciar entre una cola llena y una cola vacía.</p>
+        </div>
+      </div>
+    </aside>
+
     <footer>
-        <p>&copy; 2025 Objeto Multimedia Interactivo. Estructuras de Datos. Todos los derechos reservados.
+      <p>&copy; 2025 Objeto Multimedia Interactivo. Estructuras de Datos. Todos los derechos reservados.
         </p>
         <p>por: Julian Jimenez Villaseñor DSM-42</p>
     </footer>
+  </div>
 
-    <script>
-        // --- JavaScript (Lógica) ---
-        let MAX_SIZE = 5; 
-        let cola = [];
-        let isAnimating = false;
+  <script>
+  // ====== Utilidades ======
+  function $(id){return document.getElementById(id)}
+  function log(el, msg){ const d = document.createElement('div'); d.textContent = msg; d.style.color = 'var(--text)'; el.prepend(d); if(el.childElementCount>200) el.removeChild(el.lastChild);} 
 
-        // Elementos DOM
-        const colaContenedor = document.getElementById('cola-contenedor');
-        const colaInterno = document.getElementById('cola-contenedor-interno'); 
-        const indicadorFrente = document.getElementById('indicador-frente');
-        const indicadorFinal = document.getElementById('indicador-final');
-        const valorEntrada = document.getElementById('valor-entrada');
-        const contadorElemento = document.getElementById('contador');
-        const frenteValorElemento = document.getElementById('frente-valor');
-        const finalValorElemento = document.getElementById('final-valor');
-        const maxCapacidadElemento = document.getElementById('max-capacidad');
-        const tamanioColaInput = document.getElementById('tamanio-cola');
-        const mensajesError = document.getElementById('mensajes-error');
-        const logList = document.getElementById('log-list');
-        const elementoExtraidoDisplay = document.getElementById('elemento-extraido-display');
-        
-        // Constantes de diseño
-        const INITIAL_ELEMENT_WIDTH = 80; // Ancho base de la caja
-        const ELEMENT_MARGIN = 5; // Margen a cada lado (total 10px)
-        const CONTAINER_PADDING = 5; // Padding del contenedor cola (total 10px)
-        const MAX_ELEMENTS = 10; 
-        const ANIMATION_DURATION = 400; 
+  // ====== Sonido simple (Web Audio) ======
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+  function beep(freq=440, duration=0.07){
+    if(!audioCtx) audioCtx = new AudioCtx();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.frequency.value = freq; o.type='sine';
+    o.connect(g); g.connect(audioCtx.destination);
+    g.gain.value = 0.02;
+    o.start();
+    setTimeout(()=>{ o.stop(); }, duration*1000);
+  }
 
-        let errorTimeout;
-        let indicadorTimeout;
-        
-        // Función para manejar el estado de los botones durante las animaciones
-        function toggleControls(disable) {
-            isAnimating = disable;
-            document.querySelectorAll('button').forEach(button => {
-                if (button.id !== 'btn-limpiar' && button.id !== 'btn-set-size') {
-                    button.disabled = disable;
-                }
-            });
-            valorEntrada.disabled = disable;
-        }
+  // ====== Estado y render helpers ======
+  let MAX = parseInt($('configMax').value,10) || 7;
 
-        // Función para agregar un mensaje al registro de operaciones
-        function logOperation(mensaje, tipo = 'info') {
-            const li = document.createElement('li');
-            li.textContent = mensaje;
-            
-            if (tipo === 'error') {
-                li.classList.add('error');
-            } else if (tipo === 'success') {
-                li.classList.add('success');
-            }
-            
-            logList.insertBefore(li, logList.firstChild);
-            
-            while (logList.children.length > 20) {
-                logList.removeChild(logList.lastChild);
-            }
-        }
-        
-        // Función clave para calcular y aplicar el ancho de los elementos
-        function ajustarAnchoElementos(elementCount) {
-            // Utilizamos la capacidad máxima como base para calcular el ancho y que no salte al hacer ENQUEUE/DEQUEUE
-            const baseCount = MAX_SIZE; 
-            // Usa el ancho actual del contenedor de la cola (responsivo)
-            const containerWidth = colaContenedor.clientWidth - (CONTAINER_PADDING * 2); 
-            
-            // Si hay 5 o menos elementos, usamos el ancho inicial.
-            if (baseCount <= 5 && containerWidth > (INITIAL_ELEMENT_WIDTH + ELEMENT_MARGIN * 2) * baseCount) {
-                return INITIAL_ELEMENT_WIDTH; 
-            }
-            
-            // Calcular el ancho total necesario para los márgenes
-            const totalMarginWidth = (baseCount * 2 * ELEMENT_MARGIN);
-            
-            // Ancho disponible para las cajas de los elementos
-            const availableWidth = containerWidth - totalMarginWidth;
-            
-            // Ancho nuevo para cada elemento
-            let newElementWidth = Math.floor(availableWidth / baseCount);
-            
-            if (newElementWidth < 40) {
-                 newElementWidth = 40; 
-            }
-            
-            return newElementWidth;
-        }
+  // SIMPLE QUEUE (no circular) - implementación con front y rear que se mueven
+  const simple = { arr: [], front:0, rear:-1, count:0 };
+  function simpleInit(){ simple.arr = new Array(MAX).fill(null); simple.front = 0; simple.rear = -1; simple.count = 0; renderSimple(); $('simpleLog').innerHTML=''; $('simpleState').textContent='Listo'; }
+  function renderSimple(){ 
+    const container = $('simpleArray'); 
+    container.innerHTML=''; 
+    
+    for(let i=0;i<MAX;i++){ 
+      const c = document.createElement('div'); 
+      c.className='cell '+(simple.arr[i]===null?'empty':'filled'); 
+      c.textContent = simple.arr[i]===null?'-':simple.arr[i]; 
+      
+      // Punteros: frente
+      if(i===simple.front && simple.count>0){ 
+        const p = document.createElement('div'); 
+        p.className='pointer'; 
+        p.textContent='FRENTE'; 
+        c.appendChild(p);
+      } 
+      
+      // Punteros: final
+      if(i===simple.rear && simple.count>0){ 
+        const p2 = document.createElement('div'); 
+        p2.className='pointer rear'; 
+        p2.textContent='FINAL'; 
+        c.appendChild(p2);
+      } 
+      container.appendChild(c);
+    }
+    $('simpleFront').textContent = simple.front;
+    $('simpleRear').textContent = simple.rear;
+    $('simpleCount').textContent = simple.count;
+  }
 
+  function simpleEnqueue(val){ if(val===''){ $('simpleState').textContent='Ingresa un valor'; return; } if(simple.rear >= MAX-1){ $('simpleState').textContent='Cola llena'; log($('simpleLog'), 'Intento enqueue → Cola llena (Overflow)'); beep(280,0.08); return; } simple.rear++; simple.arr[simple.rear]=val; simple.count++; renderSimple(); $('simpleState').textContent='Enqueued: '+val; log($('simpleLog'), 'Enqueue('+val+') en pos '+simple.rear); beep(600,0.05);} 
+  function simpleDequeue(){ if(simple.count<=0 || simple.front>simple.rear){ $('simpleState').textContent='Cola vacía'; log($('simpleLog'), 'Intento dequeue → Cola vacía (Underflow)'); beep(240,0.08); return; } const val = simple.arr[simple.front]; simple.arr[simple.front]=null; simple.front++; simple.count--; renderSimple(); $('simpleState').textContent='Dequeued: '+val; log($('simpleLog'), 'Dequeue() → valor '+val); beep(740,0.06); }
 
-        function setMaxSize() {
-            if (cola.length > 0) {
-                mostrarMensaje("No puedes cambiar el tamaño de la cola mientras contenga elementos. Usa 'Limpiar Cola' primero.", true);
-                tamanioColaInput.value = MAX_SIZE; 
-                return;
-            }
-            
-            const nuevoTamanio = parseInt(tamanioColaInput.value);
-            
-            if (isNaN(nuevoTamanio) || nuevoTamanio < 1 || nuevoTamanio > MAX_ELEMENTS) {
-                mostrarMensaje(`Capacidad inválida. Debe ser un número entre 1 y ${MAX_ELEMENTS}.`, true);
-                tamanioColaInput.value = MAX_SIZE;
-                return;
-            }
+  // CIRCULAR QUEUE - front, rear, count
+  const circ = { arr: [], front:0, rear:0, count:0 };
+  function circInit(){ circ.arr = new Array(MAX).fill(null); circ.front = 0; circ.rear = 0; circ.count = 0; renderCirc(); $('circLog').innerHTML=''; $('circState').textContent='Listo'; }
+  function renderCirc(){ 
+    const container = $('circArray'); 
+    container.innerHTML=''; 
+    
+    for(let i=0;i<MAX;i++){ 
+      const c = document.createElement('div'); 
+      c.className='cell '+(circ.arr[i]===null?'empty':'filled'); 
+      c.textContent = circ.arr[i]===null?'-':circ.arr[i]; 
+      
+      // Punteros: frente
+      if(i===circ.front && circ.count>0){ 
+        const p = document.createElement('div'); 
+        p.className='pointer'; 
+        p.textContent='FRENTE'; 
+        c.appendChild(p);
+      } 
+      
+      // rear points to the NEXT free position in our design; we display rear-1 when count>0
+      let rearDisplay = (circ.rear - 1 + MAX) % MAX;
+      if(circ.count===0) rearDisplay = (circ.rear)%MAX; // show rear when empty
+      
+      // Punteros: final
+      if(i===rearDisplay && circ.count>0){ 
+        const p2 = document.createElement('div'); 
+        p2.className='pointer rear'; 
+        p2.textContent='FINAL'; 
+        c.appendChild(p2);
+      } 
+      container.appendChild(c);
+    }
+    $('circFront').textContent = circ.front;
+    $('circRear').textContent = circ.rear;
+    $('circCount').textContent = circ.count;
+  }
 
-            MAX_SIZE = nuevoTamanio;
-            maxCapacidadElemento.textContent = MAX_SIZE;
-            
-            // Forzar actualización para aplicar el nuevo ancho
-            actualizarVisualizacion(true); 
+  function circEnqueue(val){ if(val===''){ $('circState').textContent='Ingresa un valor'; return; } if(circ.count === MAX){ $('circState').textContent='Cola Circular llena'; log($('circLog'), 'Intento enqueue → Cola Circular llena (Overflow)'); beep(280,0.08); return; } circ.arr[circ.rear] = val; log($('circLog'), 'Enqueue('+val+') en pos '+circ.rear); circ.rear = (circ.rear + 1) % MAX; circ.count++; renderCirc(); $('circState').textContent='Enqueued: '+val; beep(620,0.05); }
+  function circDequeue(){ if(circ.count === 0){ $('circState').textContent='Cola Circular vacía'; log($('circLog'), 'Intento dequeue → Cola Circular vacía (Underflow)'); beep(240,0.08); return; } const val = circ.arr[circ.front]; circ.arr[circ.front] = null; log($('circLog'), 'Dequeue() → valor '+val+' desde pos '+circ.front); circ.front = (circ.front + 1) % MAX; circ.count--; renderCirc(); $('circState').textContent='Dequeued: '+val; beep(700,0.06); }
 
-            logOperation(`Capacidad máxima definida a ${nuevoTamanio}.`);
-            mostrarMensaje(`Capacidad definida a ${nuevoTamanio}.`, false);
-        }
+  // ====== Event bindings ======
+  document.addEventListener('DOMContentLoaded', ()=>{
+    // initial
+    simpleInit(); circInit();
 
-        function limpiarCola() {
-            if (cola.length === 0) {
-                 logOperation("La cola ya está vacía.", 'info');
-                 return;
-            }
-            
-            toggleControls(true); 
-            
-            const elementosVisuales = colaInterno.querySelectorAll('.elemento');
-            
-            // Animación de salida masiva hacia la izquierda
-            elementosVisuales.forEach((el, index) => {
-                setTimeout(() => {
-                    el.classList.add('saliendo'); 
-                }, index * 50); 
-            });
+    // simple
+    $('simpleEnq').addEventListener('click', ()=>{ simpleEnqueue($('simpleValue').value.trim()); $('simpleValue').value=''; $('simpleValue').focus(); });
+    $('simpleDeq').addEventListener('click', ()=>{ simpleDequeue(); });
+    $('simpleClear').addEventListener('click', ()=>{ simpleInit(); });
 
-            cola = [];
-            
-            setTimeout(() => {
-                // Reiniciar el contenedor
-                colaInterno.style.transform = `translateX(0px)`;
-                actualizarVisualizacion(true); 
-                logOperation("✅ Cola limpiada exitosamente.", 'success');
-                toggleControls(false); 
-            }, elementosVisuales.length * 50 + ANIMATION_DURATION); 
-        }
+    // circular
+    $('circEnq').addEventListener('click', ()=>{ circEnqueue($('circValue').value.trim()); $('circValue').value=''; $('circValue').focus(); });
+    $('circDeq').addEventListener('click', ()=>{ circDequeue(); });
+    $('circClear').addEventListener('click', ()=>{ circInit(); });
 
-        function limpiarIndicadores() {
-            clearTimeout(indicadorTimeout); 
-            indicadorFrente.classList.remove('visible');
-            indicadorFinal.classList.remove('visible');
-        }
+    // config
+    $('applyConfig').addEventListener('click', ()=>{ const v = parseInt($('configMax').value,10)||7; if(v<3||v>12){ alert('MAX debe estar entre 3 y 12'); return;} MAX=v; simpleInit(); circInit(); });
+    $('resetAll').addEventListener('click', ()=>{ $('configMax').value='7'; MAX=7; simpleInit(); circInit(); });
 
-        function limpiarFrontVisual() {
-            colaInterno.querySelectorAll('.elemento').forEach(el => el.classList.remove('frente', 'final', 'front-resaltado'));
-        }
+    // keyboard shortcuts
+    window.addEventListener('keydown',(e)=>{ if(e.altKey && e.key==='1'){ $('simpleValue').focus(); e.preventDefault(); } if(e.altKey && e.key==='2'){ $('circValue').focus(); e.preventDefault(); } });
 
-        function actualizarVisualizacion(forzarRedibujo = false) {
-            contadorElemento.textContent = cola.length;
-            
-            limpiarIndicadores(); 
-            limpiarFrontVisual();
-
-            // Determinar el ancho de los elementos basado en MAX_SIZE
-            const elementWidth = ajustarAnchoElementos(MAX_SIZE);
-
-            if (forzarRedibujo) {
-                colaInterno.innerHTML = ''; 
-                // Añadir todos los elementos de la cola en el orden correcto (FIFO)
-                cola.forEach((item) => {
-                    const divElemento = document.createElement('div');
-                    divElemento.className = 'elemento';
-                    divElemento.textContent = item;
-                    // Aplicar el ancho calculado
-                    divElemento.style.width = `${elementWidth}px`;
-                    divElemento.style.minWidth = `${elementWidth}px`;
-                    divElemento.style.lineHeight = `${elementWidth - 10}px`; // Ajustar texto verticalmente
-                    colaInterno.appendChild(divElemento); 
-                });
-            } else {
-                // Si no hay redibujo completo, ajustar los anchos existentes
-                 colaInterno.querySelectorAll('.elemento').forEach(divElemento => {
-                    divElemento.style.width = `${elementWidth}px`;
-                    divElemento.style.minWidth = `${elementWidth}px`;
-                    divElemento.style.lineHeight = `${elementWidth - 10}px`;
-                 });
-            }
-            
-            const elementosVisuales = colaInterno.querySelectorAll('.elemento');
-
-            if (cola.length > 0) {
-                // Actualizar estado de Frente y Final
-                const frenteValue = cola[0];
-                frenteValorElemento.textContent = frenteValue;
-                elementosVisuales[0].classList.add('frente');
-                
-                const finalValue = cola[cola.length - 1];
-                finalValorElemento.textContent = finalValue;
-                elementosVisuales[cola.length - 1].classList.add('final');
-
-                if (cola.length === 1) {
-                    elementosVisuales[0].classList.add('final'); 
-                } else {
-                    elementosVisuales[0].classList.remove('final');
-                }
-                
-                // Mostrar indicadores
-                indicadorFrente.classList.add('visible');
-                indicadorFinal.classList.add('visible');
-
-            } else {
-                frenteValorElemento.textContent = 'N/A';
-                finalValorElemento.textContent = 'N/A';
-            }
-            
-            // Eliminar cualquier transformación de desplazamiento (para asegurar visualización completa)
-              colaInterno.style.transform = `translateX(0px)`;
-        }
-
-        function mostrarMensaje(mensaje, esError = true) {
-            clearTimeout(errorTimeout); 
-            mensajesError.textContent = mensaje;
-            mensajesError.style.backgroundColor = esError ? '#e74c3c' : '#27ae60'; 
-            
-            errorTimeout = setTimeout(() => {
-                mensajesError.textContent = '';
-                mensajesError.style.backgroundColor = 'transparent';
-            }, 3000);
-        }
-
-        // --- OPERACIONES PRINCIPALES con Animaciones ---
-
-        function enqueueElemento() {
-            if (isAnimating) return;
-            toggleControls(true);
-            
-            const valor = valorEntrada.value.trim();
-            if (!valor) {
-                mostrarMensaje("Por favor, introduce un valor antes de encolar.", true);
-                toggleControls(false);
-                return;
-            }
-
-            // --- Desbordamiento (Overflow) ---
-            if (cola.length >= MAX_SIZE) {
-                const mensaje = `🛑 ERROR (Overflow). ENQUEUE fallido. La cola está llena (Máx: ${MAX_SIZE}).`;
-                mostrarMensaje(mensaje, true);
-                logOperation(mensaje, 'error');
-                toggleControls(false);
-                return;
-            }
-            
-            // 1. Agrega el valor a la estructura de datos JS
-            cola.push(valor);
-
-            // 2. Determinar el ancho de los elementos (usando MAX_SIZE)
-            const elementWidth = ajustarAnchoElementos(MAX_SIZE);
-            
-            // 3. Crea el elemento visual y lo prepara para la animación de entrada
-            const divElemento = document.createElement('div');
-            divElemento.className = 'elemento entrando';
-            divElemento.textContent = valor;
-            divElemento.style.width = `${elementWidth}px`;
-            divElemento.style.minWidth = `${elementWidth}px`;
-            divElemento.style.lineHeight = `${elementWidth - 10}px`;
-
-            // 4. Insertar en el contenedor interno
-            colaInterno.appendChild(divElemento);
-            
-            // 5. Ajustar todos los anchos para acomodar el nuevo elemento (usando la misma lógica)
-            colaInterno.querySelectorAll('.elemento').forEach(el => {
-                 el.style.width = `${elementWidth}px`;
-                 el.style.minWidth = `${elementWidth}px`;
-                 el.style.lineHeight = `${elementWidth - 10}px`;
-            });
-            
-            // 6. Inicia la animación de entrada
-            setTimeout(() => {
-                divElemento.classList.remove('entrando');
-                actualizarVisualizacion();
-                logOperation(`➕ ENQUEUE: Elemento "${valor}" añadido al Final.`, 'success');
-                toggleControls(false);
-                
-            }, 50); 
-            
-            valorEntrada.value = '';
-        }
-
-        function dequeueElemento() {
-            if (isAnimating) return;
-            toggleControls(true);
-
-            // --- Subdesbordamiento (Underflow) ---
-            if (cola.length === 0) {
-                const mensaje = "⛔ ERROR (Underflow). DEQUEUE fallido. La cola está vacía.";
-                mostrarMensaje(mensaje, true);
-                logOperation(mensaje, 'error');
-                toggleControls(false);
-                return;
-            }
-
-            // FIFO: Eliminar el primer elemento (índice 0)
-            const elementoDesencolado = cola.shift(); 
-            limpiarIndicadores(); 
-            
-            // El elemento visual a desencolar es el primero (Frente)
-            const elementoVisual = colaInterno.querySelector('.elemento');
-            
-            if (elementoVisual) {
-                // Muestra el elemento extraído en el display
-                elementoExtraidoDisplay.textContent = `⬅️ Elemento extraído (DEQUEUE): "${elementoDesencolado}"`;
-                elementoExtraidoDisplay.classList.add('visible');
-                
-                // Inicia la animación de salida
-                elementoVisual.classList.add('saliendo');
-                
-                // Mueve todos los elementos restantes a la izquierda
-                const elementWidth = ajustarAnchoElementos(MAX_SIZE);
-                // La distancia de desplazamiento es el ancho del elemento + 2*margin
-                const shiftDistance = elementWidth + (ELEMENT_MARGIN * 2);
-                
-                // Aplicar la transición de desplazamiento al contenedor interno
-                colaInterno.style.transition = `transform ${ANIMATION_DURATION}ms ease-in-out`;
-                colaInterno.style.transform = `translateX(-${shiftDistance}px)`;
-                
-                setTimeout(() => {
-                    // 1. Quitar el elemento de la animación
-                    elementoVisual.remove();
-                    // 2. Limpiar la transición y restablecer la posición
-                    colaInterno.style.transition = 'none';
-                    colaInterno.style.transform = `translateX(0px)`;
-
-                    // 3. Actualizar la visualización y log
-                    actualizarVisualizacion();
-                    logOperation(`➖ DEQUEUE: Elemento "${elementoDesencolado}" extraído del Frente.`, 'success');
-
-                    // 4. Ocultar el display de elemento extraído
-                    setTimeout(() => {
-                        elementoExtraidoDisplay.classList.remove('visible');
-                        elementoExtraidoDisplay.textContent = '';
-                        toggleControls(false);
-                    }, 500); 
-                    
-                }, ANIMATION_DURATION); 
-            }
-        }
-
-        function frontElemento() {
-            if (isAnimating) return;
-            toggleControls(true);
-
-            if (cola.length === 0) {
-                const mensaje = "⛔ ERROR (Underflow). FRONT fallido. La cola está vacía.";
-                mostrarMensaje(mensaje, true);
-                logOperation(mensaje, 'error');
-                toggleControls(false);
-                return;
-            }
-
-            const elementoFrente = cola[0];
-            const elementoVisual = colaInterno.querySelector('.elemento');
-            
-            // Resaltar visualmente
-            if (elementoVisual) {
-                elementoVisual.classList.add('front-resaltado');
-                
-                elementoExtraidoDisplay.textContent = `👁️ Elemento en el Frente (FRONT): "${elementoFrente}"`;
-                elementoExtraidoDisplay.classList.remove('visible'); // Forzar re-display
-                elementoExtraidoDisplay.classList.add('visible');
-
-                logOperation(`👁️ FRONT: El elemento al frente es "${elementoFrente}".`, 'info');
-                
-                // Eliminar el resaltado después de la animación
-                setTimeout(() => {
-                    elementoVisual.classList.remove('front-resaltado');
-                    elementoExtraidoDisplay.classList.remove('visible');
-                    elementoExtraidoDisplay.textContent = '';
-                    toggleControls(false);
-                }, ANIMATION_DURATION + 300); 
-            } else {
-                toggleControls(false);
-            }
-        }
-        
-        // Ejecutar al cargar la página
-        window.onload = function() {
-            maxCapacidadElemento.textContent = MAX_SIZE;
-            tamanioColaInput.value = MAX_SIZE;
-            logOperation("Visualizador de Cola listo. Define la capacidad o usa ENQUEUE para empezar.", 'info');
-        };
-
-        // Escucha el evento resize para asegurar que los elementos se redimensionan cuando cambia el viewport (importante para responsividad)
-        window.addEventListener('resize', () => {
-             // Solo actualizamos si hay elementos en la cola
-             if (cola.length > 0) {
-                 actualizarVisualizacion();
-             }
-        });
-    </script>
+    // helpful tooltip for initial state
+    log($('simpleLog'), 'Inicializado con MAX = '+MAX);
+    log($('circLog'), 'Inicializado con MAX = '+MAX);
+  });
+  </script>
 </body>
 </html>
